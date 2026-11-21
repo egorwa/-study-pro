@@ -1,7 +1,154 @@
 ﻿@page "/"
+@using StudyPro.Models
+@inject HttpClient HttpClient
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Study Pro - Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1">Study Pro</h1>
+            <p class="text-muted mb-0">Track your courses, assignments, and study goals.</p>
+        </div>
+        @if (studyTasks is not null)
+        {
+            <span class="badge bg-primary fs-6">
+                @studyTasks.Count(t => !t.IsCompleted) active / @studyTasks.Count total
+            </span>
+        }
+    </div>
 
-Welcome to your new app.
+    <!-- Quick Add Study Task Form -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Add Study Task</h5>
+            <EditForm Model="newTask" OnValidSubmit="AddTaskAsync">
+                <DataAnnotationsValidator />
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <InputText class="form-control" placeholder="Task title" @bind-Value="newTask.Title" />
+                    </div>
+                    <div class="col-md-3">
+                        <InputText class="form-control" placeholder="Subject / Course" @bind-Value="newTask.Subject" />
+                    </div>
+                    <div class="col-md-3">
+                        <InputDate class="form-control" @bind-Value="newTask.DueDate" />
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                            @(isSaving ? "Adding..." : "Add Task")
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <InputText class="form-control" placeholder="Notes (optional)" @bind-Value="newTask.Notes" />
+                </div>
+            </EditForm>
+        </div>
+    </div>
+
+    <!-- Study Tasks List -->
+    @if (studyTasks is null)
+    {
+        <p><em>Loading study tasks...</em></p>
+    }
+    else if (studyTasks.Count == 0)
+    {
+        <div class="alert alert-info">No study tasks yet. Add your first task above!</div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var task in studyTasks)
+            {
+                <div class="col-md-6">
+                    <div class="card h-100 shadow-sm @(task.IsCompleted ? "border-success bg-light" : "")">
+                        <div class="card-body d-flex flex-column justify-content-between">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                    <h5 class="card-title mb-0 @(task.IsCompleted ? "text-decoration-line-through text-muted" : "")">
+                                        @task.Title
+                                    </h5>
+                                    <span class="badge bg-secondary">@task.Subject</span>
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(task.Notes))
+                                {
+                                    <p class="card-text text-muted small mb-2">@task.Notes</p>
+                                }
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-2">
+                                <small class="text-muted">
+                                    Due: @(task.DueDate?.ToString("dd MMM yyyy") ?? "No due date")
+                                </small>
+
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn @(task.IsCompleted ? "btn-outline-secondary" : "btn-outline-success")"
+                                            @onclick="() => ToggleCompleteAsync(task)">
+                                        @(task.IsCompleted ? "Undo" : "Complete")
+                                    </button>
+                                    <button class="btn btn-outline-danger"
+                                            @onclick="() => DeleteTaskAsync(task.Id)">
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<StudyTask>? studyTasks;
+    private StudyTask newTask = new();
+    private bool isSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTasksAsync();
+    }
+
+    private async Task LoadTasksAsync()
+    {
+        studyTasks = await HttpClient.GetFromJsonAsync<List<StudyTask>>(NavigationManager.BaseUri + "studytasks");
+    }
+
+    private async Task AddTaskAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newTask.Title) || string.IsNullOrWhiteSpace(newTask.Subject))
+        {
+            return;
+        }
+
+        isSaving = true;
+        var response = await HttpClient.PostAsJsonAsync(NavigationManager.BaseUri + "studytasks", newTask);
+        if (response.IsSuccessStatusCode)
+        {
+            newTask = new StudyTask();
+            await LoadTasksAsync();
+        }
+        isSaving = false;
+    }
+
+    private async Task ToggleCompleteAsync(StudyTask task)
+    {
+        task.IsCompleted = !task.IsCompleted;
+        await HttpClient.PutAsJsonAsync($"{NavigationManager.BaseUri}studytasks/{task.Id}", task);
+    }
+
+    private async Task DeleteTaskAsync(int id)
+    {
+        var response = await HttpClient.DeleteAsync($"{NavigationManager.BaseUri}studytasks/{id}");
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadTasksAsync();
+        }
+    }
+    }
+
