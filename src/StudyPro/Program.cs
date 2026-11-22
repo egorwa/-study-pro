@@ -8,13 +8,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddControllers();
-builder.Services.AddHttpClient();
-
 var connectionString = builder.Configuration.GetConnectionString("StudyProConnection")
     ?? throw new InvalidOperationException("Connection string 'StudyProConnection' not found.");
 
-builder.Services.AddSqlite<StudyProContext>(connectionString);
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlite(connectionString));
 
 var app = builder.Build();
 
@@ -31,20 +29,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
-app.MapControllers();
-
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-// Initialize the database
-var scopeFactory = app.Services.GetRequiredService<IServiceScopeFactory>();
-using (var scope = scopeFactory.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<StudyProContext>();
-    if (await db.Database.EnsureCreatedAsync())
-    {
-        await SeedData.InitializeAsync(db);
-    }
-}
-
-await app.RunAsync();
+app.Run();
