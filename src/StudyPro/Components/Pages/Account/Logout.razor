@@ -1,0 +1,28 @@
+@page "/account/logout"
+@attribute [AllowAnonymous]
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@inject NavigationManager Nav
+
+<PageTitle>Sign out</PageTitle>
+
+<h1>Sign out</h1>
+<p>Are you sure you want to sign out?</p>
+
+<EditForm Model="Model" method="post" OnValidSubmit="SignOutUser" FormName="logout">
+    <button type="submit" class="btn btn-danger">Sign out</button>
+    <a href="/" class="btn btn-link">Cancel</a>
+</EditForm>
+
+@code {
+    [CascadingParameter] public HttpContext HttpContext { get; set; } = default!;
+
+    private sealed class LogoutModel { }
+    private LogoutModel Model { get; } = new();
+
+    private async Task SignOutUser()
+    {
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        Nav.NavigateTo("/account/login");
+    }
+}

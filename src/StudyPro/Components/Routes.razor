@@ -1,6 +1,33 @@
-﻿<Router AppAssembly="typeof(Program).Assembly">
+﻿@inject NavigationManager Nav
+
+<Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                @if (context.User.Identity?.IsAuthenticated != true)
+                {
+                    <RedirectToLogin />
+                }
+                else
+                {
+                    <p class="text-danger">You are not allowed to view this page.</p>
+                }
+            </NotAuthorized>
+        </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>
+
+@code {
+    private sealed class RedirectToLogin : ComponentBase
+    {
+        [Inject] NavigationManager Nav { get; set; } = default!;
+
+        protected override void OnInitialized()
+        {
+            var returnUrl = Uri.EscapeDataString(Nav.ToBaseRelativePath(Nav.Uri));
+            // forceLoad → full page reload so the login page runs as Static SSR
+            Nav.NavigateTo($"/account/login?returnUrl={returnUrl}", forceLoad: true);
+        }
+    }
+}

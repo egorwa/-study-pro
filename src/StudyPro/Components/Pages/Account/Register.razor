@@ -1,0 +1,79 @@
+@page "/account/register"
+@attribute [AllowAnonymous]
+@inject IAccountService Accounts
+@inject NavigationManager Nav
+
+<PageTitle>Create account</PageTitle>
+
+<h1>Create account</h1>
+
+<FormAlert Message="@Input.GeneralError" />
+
+<EditForm Model="Input" method="post" OnValidSubmit="Submit" FormName="register" Enhance>
+    <DataAnnotationsValidator />
+
+    <FormField TValue="string" Label="First name" For="() => Input.Name">
+        <InputText @bind-Value="Input.Name" class="form-control" />
+    </FormField>
+
+    <FormField TValue="string" Label="Last name" For="() => Input.LastName">
+        <InputText @bind-Value="Input.LastName" class="form-control" />
+    </FormField>
+
+    <FormField TValue="DateTime" Label="Date of birth" For="() => Input.Dob"
+               CustomError="@Input.FieldErrors.GetValueOrDefault(nameof(RegisterInput.Dob))">
+        <InputDate @bind-Value="Input.Dob" class="form-control" />
+    </FormField>
+
+    <FormField TValue="string" Label="Email" For="() => Input.Email"
+               CustomError="@Input.FieldErrors.GetValueOrDefault(nameof(RegisterInput.Email))">
+        <InputText @bind-Value="Input.Email" type="email" autocomplete="username" class="form-control" />
+    </FormField>
+
+    <FormField TValue="string?" Label="Phone (optional)" For="() => Input.Phone">
+        <InputText @bind-Value="Input.Phone" class="form-control" />
+    </FormField>
+
+    <PasswordField Label="Password"
+                   InputId="Input_Password"
+                   For="() => Input.Password"
+                   @bind-Value="Input.Password"
+                   ShowStrength="true"
+                   OnInputJs="accountHelpers.checkStrength('Input_Password');" />
+
+    <PasswordField Label="Confirm password"
+                   InputId="Input_ConfirmPassword"
+                   For="() => Input.ConfirmPassword"
+                   @bind-Value="Input.ConfirmPassword"
+                   OnInputJs="accountHelpers.checkMatch('Input_Password', 'Input_ConfirmPassword');" />
+
+    <button type="submit" class="btn btn-primary">Register</button>
+    <a href="/account/login" class="btn btn-link">Already have an account?</a>
+</EditForm>
+
+@code {
+    [CascadingParameter] public HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm(FormName = "register")]
+    public RegisterInput Input { get; set; } = new();
+
+    private async Task Submit()
+    {
+        Input.FieldErrors.Clear();
+        Input.GeneralError = null;
+
+        var result = await Accounts.RegisterAsync(Input);
+
+        if (!result.Success)
+        {
+            if (result.FieldName is not null)
+                Input.FieldErrors[result.FieldName] = result.Error!;
+            else
+                Input.GeneralError = result.GeneralError;
+            return;
+        }
+
+        await SignInHelper.SignInAsync(HttpContext, result.User!);
+        Nav.NavigateTo("/");
+    }
+}

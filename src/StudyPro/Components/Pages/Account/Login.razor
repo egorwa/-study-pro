@@ -1,0 +1,62 @@
+@page "/account/login"
+@attribute [AllowAnonymous]
+@inject IAccountService Accounts
+@inject NavigationManager Nav
+
+<PageTitle>Sign in</PageTitle>
+
+<h1>Sign in</h1>
+
+<FormAlert Message="@Input.GeneralError" />
+
+<EditForm Model="Input" method="post" OnValidSubmit="Submit" FormName="login" Enhance>
+    <DataAnnotationsValidator />
+
+    <FormField TValue="string" Label="Email" For="() => Input.Email">
+        <InputText @bind-Value="Input.Email" type="email" autocomplete="username" class="form-control" />
+    </FormField>
+
+    <PasswordField Label="Password"
+                   InputId="Login_Password"
+                   For="() => Input.Password"
+                   @bind-Value="Input.Password"
+                   Autocomplete="current-password" />
+
+    <div class="form-check mb-3">
+        <InputCheckbox @bind-Value="Input.RememberMe" class="form-check-input" />
+        <label class="form-check-label">Remember me</label>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Sign in</button>
+    <a href="/account/register" class="btn btn-link">Create an account</a>
+</EditForm>
+
+@code {
+    [CascadingParameter] public HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm(FormName = "login")]
+    public LoginInput Input { get; set; } = new();
+
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    private async Task Submit()
+    {
+        Input.GeneralError = null;
+
+        var (user, error, _) = await Accounts.VerifyAsync(Input.Email, Input.Password);
+        if (user is null)
+        {
+            await Task.Delay(250); // slow brute force
+            Input.GeneralError = error;
+            return;
+        }
+
+        await SignInHelper.SignInAsync(HttpContext, user, persistent: Input.RememberMe);
+
+        if (!string.IsNullOrEmpty(ReturnUrl) && Uri.IsWellFormedUriString(ReturnUrl, UriKind.Relative))
+            Nav.NavigateTo(ReturnUrl);
+        else
+            Nav.NavigateTo("/");
+    }
+}

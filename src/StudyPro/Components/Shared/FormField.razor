@@ -1,0 +1,18 @@
+@typeparam TValue
+
+<div class="mb-3">
+    <label class="form-label">@Label</label>
+    @ChildContent
+    <ValidationMessage For="@For" class="text-danger small" />
+    @if (!string.IsNullOrEmpty(CustomError))
+    {
+        <div class="text-danger small">@CustomError</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter, EditorRequired] public Expression<Func<TValue>> For { get; set; } = default!;
+    [Parameter, EditorRequired] public RenderFragment ChildContent { get; set; } = default!;
+    [Parameter] public string? CustomError { get; set; }
+}
